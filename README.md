@@ -1,5 +1,7 @@
 # softAuthentication
 
+No signup. No login. No passwords. Just recognition.
+
 A frictionless authentication system that identifies users by **name + device fingerprint** — no signup, no login, no passwords required. Best suited for websites with chat or any lightweight user interaction.
 
 ---
