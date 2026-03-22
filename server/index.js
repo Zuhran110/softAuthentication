@@ -17,6 +17,8 @@ app.use(express.json());
 
 //  route
 app.use("/api", require("./routes/register.routes"));
+app.use("/api", require("./routes/generateCode.routes"));
+app.use("/api", require("./routes/linkCode.routes"));
 
 app.get("/", (req, res) => {
   res.send("API is running...");
