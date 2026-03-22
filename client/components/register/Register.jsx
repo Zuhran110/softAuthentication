@@ -3,9 +3,8 @@ import { useForm } from "react-hook-form";
 import useDeviceFingerprint from "../hooks/useDeviceFingerprint";
 
 const RegisterFlow = () => {
-  // "checking" | "new" | "done"
   const [status, setStatus] = useState("checking");
-  const [linkCode, setLinkCode] = useState(localStorage.getItem("linkCode"));
+  const [linkCode, setLinkCode] = useState(null);
   const [showCodeInput, setShowCodeInput] = useState(false);
   const fingerprint = useDeviceFingerprint();
   const { register, handleSubmit } = useForm();
@@ -23,7 +22,25 @@ const RegisterFlow = () => {
     }
   }, []);
 
-  // Returning user: POST only UUID, no name or fingerprint needed
+  const fetchLinkCode = async (uuid) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_BACKEND_URL}/api/generate-code`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uuid }),
+        },
+      );
+      const result = await res.json();
+      if (res.ok && result.linkCode) {
+        setLinkCode(result.linkCode);
+      }
+    } catch {
+      // failed to fetch link code
+    }
+  };
+
   const sendUUID = async (uuid) => {
     try {
       const res = await fetch(
@@ -35,19 +52,17 @@ const RegisterFlow = () => {
         },
       );
       if (res.ok) {
-        console.log("Welcome back", uuid);
         setStatus("done");
+        fetchLinkCode(uuid);
       } else {
         localStorage.removeItem("session");
         setStatus("new");
       }
-    } catch (err) {
-      console.error("UUID check failed", err);
+    } catch {
       setStatus("new");
     }
   };
 
-  // New user: POST name + fingerprint, backend returns UUID, store it
   const onSubmit = async (data) => {
     try {
       const res = await fetch(
@@ -61,45 +76,14 @@ const RegisterFlow = () => {
       const result = await res.json();
       if (res.ok && result.uuid) {
         localStorage.setItem("session", result.uuid);
-        localStorage.setItem("firstName", data.firstName);
         setStatus("done");
-      } else {
-        if (res.status === 401) {
-          console.error("Name does not match our records");
-        } else {
-          console.error("Registration failed", result.message);
-        }
+        fetchLinkCode(result.uuid);
       }
-    } catch (err) {
-      console.error("Registration error", err);
+    } catch {
+      // registration failed
     }
   };
 
-  // Generate link code for authenticated user
-  const generateCode = async () => {
-    try {
-      const uuid = localStorage.getItem("session");
-      const res = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/generate-code`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ uuid }),
-        },
-      );
-      const result = await res.json();
-      if (res.ok && result.linkCode) {
-        setLinkCode(result.linkCode);
-        localStorage.setItem("linkCode", result.linkCode);
-      } else {
-        console.error("Failed to generate code", result.message);
-      }
-    } catch (err) {
-      console.error("Generate code error", err);
-    }
-  };
-
-  // Authenticate using a link code on a new device
   const onCodeSubmit = async (data) => {
     try {
       const res = await fetch(
@@ -114,11 +98,10 @@ const RegisterFlow = () => {
       if (res.ok && result.uuid) {
         localStorage.setItem("session", result.uuid);
         setStatus("done");
-      } else {
-        console.error("Invalid code", result.message);
+        fetchLinkCode(result.uuid);
       }
-    } catch (err) {
-      console.error("Link code error", err);
+    } catch {
+      // link code failed
     }
   };
 
@@ -128,10 +111,11 @@ const RegisterFlow = () => {
     return (
       <div>
         <p>Authenticated!</p>
-        {linkCode ? (
-          <p>Your code: <strong>{linkCode}</strong></p>
-        ) : (
-          <button onClick={generateCode}>Get My Code</button>
+        {linkCode && (
+          <div>
+            <p>Your recovery code: <strong>{linkCode}</strong></p>
+            <p><em>use this code in another device</em></p>
+          </div>
         )}
       </div>
     );

@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const User = require("../model/User");
 const Device = require("../model/Device");
 const SessionUUID = require("../model/SessionUUID");
@@ -16,9 +17,11 @@ async function LinkCodeController(req, res) {
       return res.status(404).json({ message: "Invalid code" });
     }
 
+    const fingerprintHash = crypto.createHash("sha256").update(deviceId).digest("hex");
+
     const device = await Device.create({
       userID: user._id,
-      fingerprintHash: deviceId,
+      fingerprintHash,
     });
 
     const uuid = GenerateUUIDService();

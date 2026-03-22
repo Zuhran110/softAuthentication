@@ -1,15 +1,12 @@
+const crypto = require("crypto");
 const User = require("../model/User");
 
 async function linkCodeGenerator() {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let code;
   let exists = true;
 
   while (exists) {
-    code = "";
-    for (let i = 0; i < 6; i++) {
-      code += chars[Math.floor(Math.random() * chars.length)];
-    }
+    code = crypto.randomBytes(6).toString("base64url").slice(0, 8);
     exists = await User.findOne({ linkedCode: code });
   }
 

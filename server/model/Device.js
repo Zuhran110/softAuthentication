@@ -9,6 +9,7 @@ const DeviceSchema = new mongoose.Schema({
   fingerprintHash: {
     type: String,
     required: true,
+    index: true,
   },
   firstSeen: {
     type: Date,
