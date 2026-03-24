@@ -1,7 +1,7 @@
 import "./App.css";
-import RegisterFlow from "../components/register/Register";
+import RegisterFlow from "../components/register/Register.jsx";
 
-function App() {
+const App= () : JSX.Element => {
   return (
     <>
       <RegisterFlow />
