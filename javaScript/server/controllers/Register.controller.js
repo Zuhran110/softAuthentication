@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const GenerateUUIDService = require("../services/GenerateUUID.service");
 const ProcessService = require("../services/Process.service");
@@ -5,10 +6,13 @@ const SessionUUID = require("../model/SessionUUID");
 const User = require("../model/User");
 const Device = require("../model/Device");
 
+function hashSHA256(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
 async function RegisterController(req, res) {
   try {
     const { firstName, deviceId, uuid } = req.body;
-    console.log("POST /api/register body:", req.body);
 
     const hasValidUUID =
       typeof uuid === "string" &&
@@ -29,67 +33,41 @@ async function RegisterController(req, res) {
       deviceId !== "undefined";
 
     if (hasValidUUID) {
-      console.log("UUID login attempt:", uuid);
       const session = await SessionUUID.findOneAndUpdate(
         { UUID: uuid },
         { $set: { lastSeen: new Date() } },
         { returnDocument: "after" },
       );
       if (!session) {
-        console.log("No session found for UUID:", uuid);
         return res.status(400).json({ message: "Invalid or expired UUID" });
       }
-
-      console.log("Session found for UUID:", uuid);
-
       return res
         .status(200)
         .json({ message: "welcome back", uuid: session.UUID });
     }
-    async function nameAuth() {
-      if (validName) {
-        const allUsers = await User.find();
-        let matchedUser = null;
-        for (const user of allUsers) {
-          const isMatch = await bcrypt.compare(firstName, user.nameHash);
-          if (isMatch) {
-            matchedUser = user;
-            break;
-          }
-        }
-        if (matchedUser) {
-          const session = await SessionUUID.findOne({
-            userID: matchedUser._id,
-          });
-          if (session) {
-            res
-              .status(200)
-              .json({ message: "welcome back", uuid: session.UUID });
-            return true;
-          }
-        }
-      }
-    }
 
     if (validDeviceId) {
-      const allFingerprint = await Device.find();
-      let matchedDevice = null;
-      for (const device of allFingerprint) {
-        if (device.fingerprintHash === deviceId) {
-          matchedDevice = device;
-          break;
-        }
-      }
+      const deviceHash = hashSHA256(deviceId);
+      const matchedDevice = await Device.findOne({ fingerprintHash: deviceHash });
+
       if (matchedDevice) {
-        const nameMatched = await nameAuth();
-        if (!nameMatched) {
-          return res.status(401).json({ message: "Name does not match" });
+        if (!validName) {
+          return res.status(400).json({ message: "Name is required" });
         }
-        return;
+        const nameLookup = hashSHA256(firstName.toLowerCase().trim());
+        const user = await User.findOne({ nameLookup });
+
+        if (user && await bcrypt.compare(firstName, user.nameHash)) {
+          const session = await SessionUUID.findOne({ userID: user._id });
+          if (session) {
+            return res
+              .status(200)
+              .json({ message: "welcome back", uuid: session.UUID });
+          }
+        }
+        return res.status(401).json({ message: "Name does not match" });
       }
     }
-
-    console.log("New registration attempt:", { firstName, deviceId });
 
     if (!validName || !validDeviceId) {
       return res
@@ -99,12 +77,11 @@ async function RegisterController(req, res) {
 
     const salt = bcrypt.genSaltSync(10);
     const hashedName = bcrypt.hashSync(firstName, salt);
+    const nameLookup = hashSHA256(firstName.toLowerCase().trim());
+    const deviceHash = hashSHA256(deviceId);
     const sessionUUID = GenerateUUIDService();
 
-    console.log("Generated UUID:", sessionUUID);
-
-    await ProcessService(hashedName, sessionUUID, deviceId);
-    console.log("User, device, and session created successfully");
+    await ProcessService(hashedName, nameLookup, sessionUUID, deviceHash);
 
     return res
       .status(200)
