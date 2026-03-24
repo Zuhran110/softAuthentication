@@ -25,8 +25,7 @@ async function GenerateCodeController(req, res) {
     }
 
     const code = await linkCodeGenerator();
-    user.linkedCode = code;
-    await user.save();
+    await User.findByIdAndUpdate(user._id, { linkedCode: code });
 
     return res.status(200).json({ linkCode: code });
   } catch (err) {

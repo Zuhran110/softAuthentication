@@ -1,5 +1,7 @@
 import express, { Request, Response } from "express";
 import registerRoutes from "./routes/register.routes";
+import generateCodeRoutes from "./routes/generateCode.routes";
+import linkCodeRoutes from "./routes/linkCode.routes";
 
 const cors = require("cors");
 import connectDB from "./config/db";
@@ -20,6 +22,8 @@ app.use(express.json());
 
 //  route
 app.use("/api", registerRoutes);
+app.use("/api", generateCodeRoutes);
+app.use("/api", linkCodeRoutes);
 
 // test routes
 app.get("/", (req: Request, res: Response) => {

@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IUser extends Document {
   nameHash: string;
   createdAt: Date;
+  linkedCode?: string;
 }
 
 const UserSchema: Schema<IUser> = new mongoose.Schema({
@@ -14,6 +15,11 @@ const UserSchema: Schema<IUser> = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  linkedCode: {
+    type: String,
+    unique: true,
+    sparse: true,
   },
 });
 
