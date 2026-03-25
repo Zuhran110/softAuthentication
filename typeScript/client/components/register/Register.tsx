@@ -1,19 +1,37 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler } from "react-hook-form";
 import useDeviceFingerprint from "../hooks/useDeviceFingerprint";
+import type { JSX } from "react";
 
-const RegisterFlow = () => {
-  // "checking" | "new" | "done"
-  const [status, setStatus] = useState("checking");
-  const [linkCode, setLinkCode] = useState(localStorage.getItem("linkCode"));
-  const [showCodeInput, setShowCodeInput] = useState(false);
-  const [error, setError] = useState(null);
-  const fingerprint = useDeviceFingerprint();
-  const { register, handleSubmit } = useForm();
-  const {
-    register: registerCode,
-    handleSubmit: handleCodeSubmit,
-  } = useForm();
+type Status = "checking" | "new" | "done";
+
+interface RegisterFromData {
+  firstName: string;
+}
+
+interface CodeFormData {
+  linkCode: string;
+}
+
+interface APIResponse {
+  uuid?: string;
+  linkCode?: string;
+  message?: string;
+}
+
+const RegisterFlow = (): JSX.Element => {
+  const [status, setStatus] = useState<Status>("checking");
+  const [linkCode, setLinkCode] = useState<string | null>(
+    localStorage.getItem("linkCode"),
+  );
+
+  const [showCodeInput, setShowCodeInput] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fingerprint: string | null = useDeviceFingerprint();
+  const { register, handleSubmit } = useForm<RegisterFromData>();
+  const { register: registerCode, handleSubmit: handleCodeSubmit } =
+    useForm<CodeFormData>();
 
   useEffect(() => {
     const storedUUID = localStorage.getItem("session");
@@ -25,7 +43,7 @@ const RegisterFlow = () => {
   }, []);
 
   // Returning user: POST only UUID, no name or fingerprint needed
-  const sendUUID = async (uuid) => {
+  const sendUUID = async (uuid: string): Promise<void> => {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/register`,
@@ -49,7 +67,9 @@ const RegisterFlow = () => {
   };
 
   // New user: POST name + fingerprint, backend returns UUID, store it
-  const onSubmit = async (data) => {
+  const onSubmit: SubmitHandler<RegisterFromData> = async (
+    data,
+  ): Promise<void> => {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/register`,
@@ -77,7 +97,7 @@ const RegisterFlow = () => {
   };
 
   // Generate link code for authenticated user
-  const generateCode = async () => {
+  const generateCode = async (): Promise<void> => {
     setError(null);
     try {
       const uuid = localStorage.getItem("session");
@@ -93,7 +113,7 @@ const RegisterFlow = () => {
           body: JSON.stringify({ uuid }),
         },
       );
-      const result = await res.json();
+      const result: APIResponse = await res.json();
       if (res.ok && result.linkCode) {
         setLinkCode(result.linkCode);
         localStorage.setItem("linkCode", result.linkCode);
@@ -107,14 +127,19 @@ const RegisterFlow = () => {
   };
 
   // Authenticate using a link code on a new device
-  const onCodeSubmit = async (data) => {
+  const onCodeSubmit: SubmitHandler<CodeFormData> = async (
+    data,
+  ): Promise<void> => {
     try {
       const res = await fetch(
         `${import.meta.env.VITE_BACKEND_URL}/api/link-code`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ linkCode: data.linkCode, deviceId: fingerprint }),
+          body: JSON.stringify({
+            linkCode: data.linkCode,
+            deviceId: fingerprint,
+          }),
         },
       );
       const result = await res.json();
@@ -136,7 +161,9 @@ const RegisterFlow = () => {
       <div>
         <p>Authenticated!</p>
         {linkCode ? (
-          <p>Your code: <strong>{linkCode}</strong></p>
+          <p>
+            Your code: <strong>{linkCode}</strong>
+          </p>
         ) : (
           <>
             <button onClick={generateCode}>Get My Code</button>
